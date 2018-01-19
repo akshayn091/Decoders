@@ -1,0 +1,120 @@
+SNR_dB = [0:0.2:6]; 
+% Range of Signal to noise ratio values
+C_bit_noise_ration = SNR_dB - 10*log10(2);
+%C_bit_noise_ration is the coded bits to noise ratio ; as we need two coded
+%bits for the transmission of the data bit C_bit_noise_ratio = 0.5 * SNR
+reference = -1*[-1 -1; -1 1 ;1 -1; 1 1 ];%used as the reference of states in -1 and 1 fomat corresponing to 0 and 1
+N=10000;% total number of bits
+%estimate the input based on the 
+estimated_ip = [ 0   0   0   0;
+                 0   0   0   0;
+                 1   1   0   0;
+                 0   0   1   1 ];
+
+for i = 1:length(SNR_dB)
+   % Generate a number of zeros message bits
+   input = zeros(1 , N); % generating 0 
+   % convolutional code
+   Generator = [mod(conv (input,[1 1 1 ]),2),mod(conv (input,[1 0 1 ]),2)];
+   %gennearte a generator matrix which is combination of the two matrix
+   Generator = Generator(:).';
+   Modulated_signal = 2*Generator-1; 
+   %signal is modulated and 0 is converted to -1 and 1 is converted to 0
+   noise = ([randn(size(Generator)) + j*randn(size(Generator))])/sqrt(2); % white gaussian noise is given by this formula
+   % Addition of noise to the modulated signal
+  Signal_add_noise = Modulated_signal + 10^(-C_bit_noise_ration(i)/20)*noise;   % additive white gaussian noise is added
+     Decision = real(Signal_add_noise);   % soft decision
+   % Viterbi decoding
+   Path_metric  = zeros(4,1);  % soft path metric
+   Survivor_path  = zeros(4,length(Signal_add_noise)/2); % soft survivor path
+   
+   for x = 1:length(Signal_add_noise)/2
+      
+      two_bits = Decision(2*x-1:2*x); % taking 2 soft bits
+      
+      % computing the euclidean distance
+     
+      vect = kron(ones(4,1),two_bits);
+      Euc_distance = sum(vect.*reference,2);
+ 
+      if (x == 1) || (x == 2) 
+         % branch metric and path metric for state 0 , 1,2 and 3
+              for a = 1:4
+            Branchmetric1 = Path_metric(1,1) + Euc_distance(1);
+            path(a,1)  = Branchmetric1; 
+         if a == 1 || 3
+            SS(a,1)  = 1; 
+         else
+            SS(a,1)  = 3;
+         end
+        end
+
+      else
+          k=1;
+         % branch metric and path metric for state 0
+         Branchmetric1 = Path_metric(k,1) + Euc_distance(k);
+         
+         %branchmetric 2 for the same state 0
+      
+         Branchmetric2 = Path_metric(k+1,1) + Euc_distance(k+3);
+         [path(k,1) oo] = min([Branchmetric1,Branchmetric2]);
+         SS(k,1)  = oo; 
+ 
+         % branch metric and path metric for state 1
+        
+         Branchmetric1 = Path_metric(k+2,1) + Euc_distance(k+3);
+         
+         %branchmetric 2 for the same state 1
+         Branchmetric2 = Path_metric(k+3,1) + Euc_distance(k+1);
+         [path(k+1,1) oo] = min([Branchmetric1,Branchmetric2]);
+         SS(k+1,1)  = oo+2; 
+
+         % branch metric and path metric for state 2
+        
+         Branchmetric1 = Path_metric(k,1) + Euc_distance(k+3);
+         
+         %branchmetric 2 for the same state 2
+         Branchmetric2 = Path_metric(k+1,1) + Euc_distance(k);
+         [path(k+2,1) oo] = min([Branchmetric1,Branchmetric2]);
+         SS(k+2,1)  = oo; 
+
+         % branch metric and path metric for state 3
+         
+         Branchmetric1 = Path_metric(k+2,1) + Euc_distance(k+1);
+         %branchmetric 2 for the same state 3
+         Branchmetric2 = Path_metric(k+3,1) + Euc_distance(k+3);
+         [path(k+3,1) oo] = min([Branchmetric1,Branchmetric2]);
+         SS(k+3,1)  = oo+2; 
+
+      end
+   
+   Path_metric = path; 
+   Survivor_path(:,x) = SS;
+
+   end
+
+   % trace back unit
+   Current_state = 1;
+   output_viterbi = zeros(1,length(Signal_add_noise)/2);
+   for w = max(size(Signal_add_noise))/2:-1:1
+      previous_state   = Survivor_path(Current_state,w); 
+      output_viterbi(w) = estimated_ip(Current_state,previous_state);
+      Current_state   = previous_state;
+   end
+   % counting the errors
+   Error(i) = biterr(input , output_viterbi(1:N));
+
+end
+
+Bit_error_rate = Error/N; % simulated ber - soft decision Viterbi decoding BER
+fprintf('The bit error ate is for various SNR values are');
+disp(Bit_error_rate);
+close all
+figure
+%generate a semilog graph
+semilogy(SNR_dB,Bit_error_rate,'k-p','LineWidth',2);
+axis([0 8 10^-5 0.1])
+xlabel('Signal to Noise ratio, dB');
+ylabel('Bit Error Rate');
+title('BER versus Signal to noise ratio in Viterbi ');
+
