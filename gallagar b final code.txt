@@ -1,0 +1,241 @@
+iter=input('enter the number of iterations=')
+%Get the user input for the number of iterations
+run=input('enter the number of runs=')
+%Get the user input for number of runs
+err=input('enter the probability of error in channel=')
+%Get the input about the probability of error in channel
+count=zeros(iter,run);
+%initialize a matrix of zeroes
+ecount=0;
+k=zeros(1,155);
+s=zeros(iter,run);
+dd=zeros(iter,1);
+as=zeros(iter,1);
+%Run the program for a number of runs so that we can catch errors
+for d=1:run
+    %tanner input
+x= [24   82         87         106       110
+9          44         124        131        155
+3          8           11        94         136
+19         50         58         69         81
+6          16         78         79         139
+14         64         95         105        152
+1          10         15         126        134
+39         51         104        116        149
+18         54         83         84         117
+22         34         144        146        148
+4          20         26         40         153
+28         45         65         68         88
+7          61         72         129        154
+2          43         115        135        147
+55         74         120        123        145
+29         35         41         76         122
+23         75         119        125        142
+53         57         66         70         132
+13         36         80         96         140
+31         42         63         107        118
+46         92         93         112        150
+47         49         73         100        121
+5          59         67         97         102
+98         103        128        130        137
+30         33         90         109        143
+17         48         71         85         101
+12         25         77         114        141
+21         38         52         108        151
+56         62         113        133        138
+27         89         91         99         111
+32         37         60         86         127
+41         89         98         108        127
+30         62         82         86         142
+17         24         57         99         155
+11         32         36         77         131
+42         69         94         106        151
+16         56         58         93         124
+73         79         91         136        152
+1          19         37         59         64
+10         110       116         128        139
+39         44         90         95         117
+3          15         18         85         144
+20         34         50         51         141
+6          40         52         83         88
+14         65         72         113        148
+2          7          111        126        153
+28         55         60         104        135
+29         54         87         145        154
+9          76         119        146        147
+4          8          53         74         125
+68         80         81         122        132
+13         23         31         61         78
+63         66         92         105        115
+46         47         120        134        140
+35         97         118        121        149
+67         75         84         103        150
+22         70         100        109        137
+5          26         33         71         96
+12         45         48         107        130
+25         38         112        129        143
+21         43         49         101        138
+27         102        114        123        133
+51         63         71         113        120
+12         35         46         83         111
+38         60         75         121        148
+67         70         87         138        153
+9          27         28         96         137
+8          33         107        127        154
+48         81         82         112        147
+25         49         74         78         155
+11         21         102        105        122
+23         69         98         133        134
+16         30         66         89         149
+17         84         86         140        152
+1          22         24         77         118
+26         116        131        150        151
+45         56         94         100        117
+5          58         91         129        144
+20         37         43         79         130
+64         88         110        123        143
+10         41         44         72         101
+2          3          39         114        142
+18         50         55         57         108
+6          29         34         36         62
+14         40         42         99         119
+32         53         65         93         126
+7          73         80         104        106
+31         54         59         124        135
+92         128        136        145        146
+4          19         47         76         90
+68         85         97         125        139
+61         95         103        132        141
+13         15         52         109        115
+];
+%creating a H matrix of 93 rows and 155 columns  
+z = zeros(93,155);
+for i = 1:93
+   z(i,x(i,:)) = 1;
+end
+
+f=zeros(iter ,1)
+%creating a message of 155 length
+a=zeros(1,155);
+%creating a channel with error probability as needed
+channel=bsc(a,err);
+%creating a transpose of channel and assigning it to channel1
+channel1=transpose(channel);
+H=z;
+y=channel;
+%changing  0 to 1 and 1 to -1
+for oo=1:155
+    if y(1,oo)==1
+        y(1,oo)=-1;
+    else
+        y(1,oo)= 1;
+    end
+end
+k=y;
+%display the output
+disp(y);
+b=zeros(iter , 1);
+q=zeros(iter ,1);
+for i=1:iter
+  %print the value of the iteration
+    fprintf('Iteration : %d\n', i);
+       for j=1:93
+        ci=find(H(j,:));
+        for k=1:length(ci)
+%adding all elements at the input side and creating a matrix
+            E(j, ci(k))=prod((y(ci))*y(ci(k)));
+            if E(j,ci(k))==-1
+                E(j,ci(k))=0;
+            end
+        end
+    end
+       
+    for j=1:155
+        ri=find(H(:,j));
+        %majority calculation
+        numberofones=length(find(~E(ri,j)));
+        numberofzeros=length(ri)-numberofones;
+        if(numberofones == numberofzeros)
+            yd(j)=y(j);
+        elseif(numberofones > numberofzeros)
+            yd(j)=1;
+            elseif(numberofones < numberofzeros)
+            yd(j)=0;
+        end
+    end
+y=yd;
+for oo=1:155
+    if y(1,oo)==1
+        y(1,oo)=-1;
+    else
+        y(1,oo)= 1;
+    end
+end
+%substitute y as equal to yd
+disp(yd)
+
+%searching the matrix yd to find if any value in matrix is 1 so that we can
+%find error
+B = any(yd(:)>0.5);
+if B==1
+    %counting the number of frames that are in error
+count(i,d)=count(i,d)+1;
+end   
+%using function biterr to calculate the number of bits differing from the
+%actual all zeros message 
+errorrate=biterr(a ,yd);
+fprintf(' The Bit error rate =%d\n',errorrate);
+%calculating the bit error rate
+b(i, 1) = errorrate/155 ;
+fprintf('The number of bit errors for number of iterations\n');
+disp(b);
+%Counting the number of errored frames
+for f=1:iter
+    if b[i ,iter] == 1;
+        ecount = ecount+1;
+        break
+    end
+end
+s(i ,d) = b(i,1) ;
+%Conversion of the signals    
+end
+end
+for m=1:iter
+    for e=1:run
+        if err <=0.01
+       as(m,1)=s(m,e)+as(m,1);
+        else
+        as(iter-m+1,1)=s(m,e)+as(iter-m+1,1);
+        end
+    end
+end
+as=as/run;
+g=zeros(iter ,1);
+%generatinng a matrix to generate a number 1 to iter value
+for t=1:iter
+g(t ,1) = t;
+end
+for am=1:iter
+for aw=1:run
+  dd(am,1)=count(am ,aw)+dd(am,1);
+  end
+end
+dd=dd/run;
+%display the results on graph 
+fprintf('The total erors caught when we run a number of runs for varios iterations divided by the number of runs for calculating BER\n');
+disp(as);
+figure
+plot(g ,as)
+title('When Probability of Error in Channel is 0.01')
+xlabel('Number of iteration')
+ylabel('BER')
+
+figure
+plot(g ,dd)
+title('When Probability of Error in Channel is 0.01')
+xlabel('Number of iteration')
+ylabel('FER')
+fprintf('The total erors caught when we run a number of runs for varios iterations divided by the number of runs for calculating BER\n');
+disp(dd);
+fprintf('The total number of errored Frames');
+disp(ecount);
