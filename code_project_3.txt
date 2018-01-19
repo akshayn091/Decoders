@@ -1,0 +1,178 @@
+clear, close all
+clc
+Number_of_bits=10^5;
+M = input('Enter the value of M=');
+if M ==8;
+hMod = modem.pskmod(M);
+k=log2(M);
+No_of_angles=0:M-1;
+input_symbol=randsrc(1,Number_of_bits,No_of_angles);
+input_bits=de2bi(input_symbol,3);
+n= randn(1,Number_of_bits)+1i*randn(1,Number_of_bits);
+% Initialization of dynamic arrays
+sim_BER_8PSK=zeros(1,10);
+sim_SER_8PSK=zeros(1,10);
+snrb=zeros(1,10);
+theo_SER_8PSK=zeros(1,10);
+theo_BER_8PSK=zeros(1,10);
+output_symbol=zeros(1,Number_of_bits);
+s=zeros(1,Number_of_bits);
+r_angle=zeros(1,Number_of_bits);
+sym_err=zeros(1,10);
+bit_err=zeros(1,10);
+% Calculation of theoretical and simulated SER and BER
+for ii=1:10
+ snrb(ii)=ii+6;
+ snrb_abs=10^(snrb(ii)/10);
+ A=sqrt(6*snrb_abs);
+ s(input_symbol==0)=A*exp(1i*0);
+ s(input_symbol==1)=A*exp(1i*pi/4);
+ s(input_symbol==2)=A*exp(1i*3*pi/4);
+ s(input_symbol==3)=A*exp(1i*pi/2);
+ s(input_symbol==4)=A*exp(1i*(-pi)/4);
+ s(input_symbol==5)=A*exp(1i*(-pi)/2);
+ s(input_symbol==6)=A*exp(1i*pi);
+ s(input_symbol==7)=A*exp(1i*(-3)*pi/4); 
+ r=s+n;
+ r_angle=angle(r);
+ output_symbol(r_angle>-pi/M & r_angle<=pi/M)=0;
+ output_symbol(r_angle>pi/M & r_angle<=3*pi/M)=1;
+ output_symbol(r_angle>3*pi/M & r_angle<=5*pi/M)=3;
+ output_symbol(r_angle>5*pi/M & r_angle<=7*pi/M)=2;
+ output_symbol(r_angle>7*pi/M | r_angle<=-7*pi/M)=6;
+ output_symbol(r_angle>-7*pi/M & r_angle<=-5*pi/M)=7;
+ output_symbol(r_angle>-5*pi/M & r_angle<=-3*pi/M)=5;
+ output_symbol(r_angle>-3*pi/M & r_angle<=-pi/M)=4;
+ sym_err(ii)=size(find(input_symbol-output_symbol),2);
+ sim_SER_8PSK(ii)= sym_err(ii)/Number_of_bits;
+ theo_SER_8PSK(ii)=2*qfunc(sin(pi/M)*A);
+ output_bits=de2bi(output_symbol,3);
+ bit_err(ii)=size(find(input_bits-output_bits),1);
+ sim_BER_8PSK(ii)=bit_err(ii)/(k*Number_of_bits);
+ theo_BER_8PSK(ii)=(1/k)*theo_SER_8PSK(ii);
+ fprintf('System: 8PSK ; SNR = %d ; SER = %d; BER = %d ;\n' , snrb(ii),sim_SER_8PSK(ii),sim_BER_8PSK(ii));
+end
+% Plot of SER and BER
+semilogy(snrb,sim_BER_8PSK,'bo','LineWidth',2, 'MarkerEdgeColor','k','MarkerFaceColor','g', 'MarkerSize',8);
+hold on
+semilogy(snrb, theo_BER_8PSK, 'r', 'LineWidth',2);
+legend('Simulated BER', 'Theoretical BER','Location','NorthEast');
+xlabel('SNR_b (dB)'); 
+ylabel('BER');
+title('Comparison between theoretical and simulated BER for 8-PSK over AWGN Channel')
+axis([8 14  10^-6 1])
+grid on
+hold off
+disp(sim_BER_8PSK)
+pt = hMod.Constellation;
+% Vector of % Plot the constellation. 
+scatterplot(pt);
+elseif M==4
+    EbN0dB = -4:2:10; 
+%The range of Eb/N0 vavlue in dB
+%Number of input bits
+M=4 ; 
+K=log2(M);
+hMod = modem.pskmod(M);
+%Number of Points is given by M=2^k
+nums = randi([0 1], 1, Number_of_bits) 
+%Generating a random number of 0s and 1s
+disp(nums);
+%displaying the numbers
+code_rate=1; 
+%code_rate = code rate for a coded system. Since no coding is used code_rate=1
+number_oddvalue = nums(1:2:Number_of_bits-1);
+%All bits at he odd place in nums array
+number_evenvalue = nums(2:2:Number_of_bits);
+%All bit at the even places in nums array
+modulated_signal = sqrt(1/2)*(1i*(2*number_oddvalue-1)+(2*number_evenvalue-1)); 
+%Modulated Signal
+disp(modulated_signal);
+L_EbN0dB = length(EbN0dB);
+%length of EbN0
+mod_rate=log2(M); 
+%The rate of modulation
+Bit_error_rate = zeros(1,L_EbN0dB);
+%Generate a matrix containg all the bit errors
+I_X=1;
+%Generate a variable with index equal to 1
+%repeat the loop for various values
+for k=EbN0dB
+  a=k/10;
+Linear_EbN0 = 10.^a; 
+%finding the denominator value
+val=2*mod_rate*code_rate*Linear_EbN0;
+%lets change Eb/N0 dB value to Eb/N0 linear scale
+noise_S = (1/sqrt(val)); 
+Len_mod = length(modulated_signal);
+%finding the length of the modulated signal
+N = noise_S*(randn(1,Len_mod)+1i*randn(1,Len_mod));
+%lets make N as noise of the signal
+signal_rvd = modulated_signal + N;
+%The received signal is given as a sum of mdoulated signal and noise 
+%To construct a threshold value
+real_value_thr = real(signal_rvd)>=0;
+%finding the real valures
+img_value_thr = imag(signal_rvd)>=0;
+%finding the imaginary values
+estimatedBits=reshape([img_value_thr;real_value_thr],1,[]);
+%Bit Error rate Calculation
+Bit_error_rate(I_X) = sum(xor(nums,estimatedBits))/length(nums);
+I_X= I_X+1;
+end
+BER = Bit_error_rate;
+semilogy =plot(EbN0dB,log10(BER), 'bo','LineWidth',2, 'MarkerEdgeColor','k','MarkerFaceColor','g', 'MarkerSize',8);
+disp(BER);
+title('SNR per bit (Eb/N0) Vs Bit_error_rate Curve');
+xlabel('SNR per bit (Eb/N0) in dB');
+ylabel('Bit Error Rate in power of 10');
+hold on;
+y=10.^(EbN0dB/10);
+%theoretical value of the Bit error rate
+theoreticalBER =(erfc(sqrt(y)))/(log2(M));
+semilogy =plot(EbN0dB,log10(theoreticalBER),'r','LineWidth',2);
+legend('Simulated','Theoretical-QPSK');
+grid on;
+pt = hMod.Constellation;
+% Vector of % Plot the constellation. 
+scatterplot(pt);
+txSig = pskmod(nums,K,pi/M);
+rxSig = awgn(txSig,20);
+scatterplot(rxSig)
+else
+input_bits=randi([0 1], 1, Number_of_bits)
+n=randn(1,Number_of_bits);
+% Initialization of dynamic arrays
+sim_BER_BPSK=zeros(1,10);
+snr=zeros(1,10);
+theo_BER_BPSK=zeros(1,10);
+% Calculation of theoretical and simulated BER
+for i=1:10
+ snr(1,i)=i+1;
+ snr_abs=10^(snr(1,i)/10);
+ A=sqrt(2*snr_abs);
+ s=A*(2*input_bits-1);
+ r=s+n;
+ detector_output=sign(r);
+ output_bits=detector_output>0;
+ errors =size(find(input_bits-output_bits),2);
+ sim_BER_BPSK(1,i)=errors/Number_of_bits;
+ theo_BER_BPSK(1,i)=(1/2)*erfc(A/sqrt(2));
+ fprintf('System: BPSK ; SNR = %d ; BER = %d ;\n' , snr(1,i), sim_BER_BPSK(1,i));
+end
+% Plot of BER
+semilogy(snr,sim_BER_BPSK,'bo','LineWidth',2, 'MarkerEdgeColor','k','MarkerFaceColor','g', 'MarkerSize',8);
+hold on
+disp(sim_BER_BPSK);
+semilogy(snr, theo_BER_BPSK,  'r', 'LineWidth',2);
+legend('Simulated BER', 'Theoretical BER','Location','NorthEast');
+xlabel('SNR (dB)'); ylabel('BER');
+title('Comparison between theoretical and simulated BER for BPSK over AWGN Channel')
+axis([2 10 10^-6 10^-1])
+grid on
+hold off
+hMod = modem.pskmod(M);
+pt = hMod.Constellation;
+% Vector of % Plot the constellation. 
+scatterplot(pt);
+end
